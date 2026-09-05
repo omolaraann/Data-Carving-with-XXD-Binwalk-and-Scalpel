@@ -1,6 +1,6 @@
 # 🔎 Data Carving with XXD, Binwalk & Scalpel
 
-> **SBT-DF202 — Computer and Digital Forensics | Practical Lab 3**
+> **SBT-DF202 - Computer and Digital Forensics | Practical Lab 3**
 
 A hands-on digital forensics laboratory demonstrating **hexadecimal analysis, file-signature identification, forensic image examination, deleted-file recovery, file carving, embedded-content analysis, and cryptographic verification** using Kali Linux and open-source forensic tools.
 
@@ -278,7 +278,7 @@ blkcat
 
 ---
 
-## 5.1 Image Analysis — img_stat
+## 5.1 Image Analysis - img_stat
 
 The image was examined using:
 
@@ -300,7 +300,7 @@ The sector size was:
 
 ---
 
-## 5.2 Partition Analysis — mmls
+## 5.2 Partition Analysis - mmls
 
 The following command was executed:
 
@@ -316,7 +316,7 @@ Therefore, subsequent file-system analysis was performed without applying an arb
 
 ---
 
-## 5.3 FAT12 File-System Analysis — fsstat
+## 5.3 FAT12 File-System Analysis - fsstat
 
 The file system was examined using:
 
@@ -586,7 +586,7 @@ These values provide reproducible identifiers for the recovered artefacts.
 
 # 🧠 15. Key Findings
 
-### Finding 1 — JPEG structure can be identified from binary data
+### Finding 1 - JPEG structure can be identified from binary data
 
 The JPEG SOI and EOI markers were directly identified within the hexadecimal representation:
 
@@ -595,13 +595,13 @@ FF D8 → Start of Image
 FF D9 → End of Image
 ```
 
-### Finding 2 — Hexadecimal reconstruction preserved the evidence
+### Finding 2 - Hexadecimal reconstruction preserved the evidence
 
 The JPEG was converted to hexadecimal and reconstructed without modification.
 
 The original and reconstructed files produced identical MD5 and SHA-256 hashes.
 
-### Finding 3 — Deleted files remained recoverable
+### Finding 3 - Deleted files remained recoverable
 
 Although directory entries indicated deletion, the underlying FAT12 data allowed four files to be recovered:
 
@@ -612,17 +612,17 @@ letter1.txt
 Regrets.doc
 ```
 
-### Finding 4 — File-system metadata can assist recovery
+### Finding 4 - File-system metadata can assist recovery
 
 The Sleuth Kit's `fls` output provided deleted-file metadata references that enabled targeted recovery using `icat`.
 
-### Finding 5 — File carving requires validation
+### Finding 5 - File carving requires validation
 
 Scalpel produced ten DOC candidates, but only a subset represented meaningful Word-document content.
 
 Duplicate, incomplete and over-carved results demonstrate why carved artefacts must be validated before being treated as confirmed evidence.
 
-### Finding 6 — Different forensic tools provide complementary evidence
+### Finding 6 - Different forensic tools provide complementary evidence
 
 TSK and Scalpel did not simply produce identical outputs. Instead, their results demonstrated different approaches:
 
@@ -735,8 +735,8 @@ This separation makes the investigation easier to reproduce and review.
 
 # 🎓 Academic Context
 
-**Course:** SBT-DF202 — Computer and Digital Forensics
-**Practical:** Lab 3 — Data Carving
+**Course:** SBT-DF202 - Computer and Digital Forensics
+**Practical:** Lab 3 - Data Carving
 **Environment:** Kali Linux
 **Focus:** Digital forensics, file carving, deleted-file recovery and binary analysis
 
@@ -748,7 +748,7 @@ This repository documents an authorised educational laboratory exercise and is i
 
 **Kafayat Omolara Animashawun, CISSP**
 
-Cybersecurity | Threat Intelligence | Incident Response | Digital Forensics
+Cybersecurity | Application Security | Threat Intelligence | Incident Response | Digital Forensics
 
 ---
 
