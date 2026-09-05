@@ -1,0 +1,26 @@
+
+Scalpel version 1.60 audit file
+Started at Sat Sep  5 11:45:42 2026
+Command line:
+scalpel -c /etc/scalpel/scalpel.conf -o /home/kali/Lab3_Data_Carving/scalpel_output /home/kali/Lab3_Data_Carving/original_evidence/Ch01InChap01.dd 
+
+Output directory: /home/kali/Lab3_Data_Carving/scalpel_output
+Configuration file: /etc/scalpel/scalpel.conf
+
+Opening target "/home/kali/Lab3_Data_Carving/original_evidence/Ch01InChap01.dd"
+
+The following files were carved:
+File		  Start			Chop		Length		Extracted From
+00000009.doc       160256		YES         1314305		Ch01InChap01.dd
+00000008.doc       145920		YES         1328641		Ch01InChap01.dd
+00000007.doc       121344		YES         1353217		Ch01InChap01.dd
+00000006.doc       111653		YES         1362908		Ch01InChap01.dd
+00000005.doc       105509		YES         1369052		Ch01InChap01.dd
+00000004.doc       160256		NO          1314305		Ch01InChap01.dd
+00000003.doc       145920		NO            14336		Ch01InChap01.dd
+00000002.doc       121344		NO            24576		Ch01InChap01.dd
+00000001.doc       111653		NO             9691		Ch01InChap01.dd
+00000000.doc       105509		NO             6144		Ch01InChap01.dd
+
+
+Completed at Sat Sep  5 11:45:42 2026

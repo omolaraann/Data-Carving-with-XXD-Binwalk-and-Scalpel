@@ -1,0 +1,4 @@
+Scalpel version 1.60
+Written by Golden G. Richard III, based on Foremost 0.69.
+Batch mode: reading list of images from /home/kali/Lab3_Data_Carving/original_evidence/Ch01InChap01.dd.
+Scalpel is done, files carved = 0, elapsed = 2 seconds.

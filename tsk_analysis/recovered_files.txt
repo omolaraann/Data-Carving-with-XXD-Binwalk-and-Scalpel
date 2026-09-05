@@ -1,0 +1,5 @@
+total 56K
+-rw-rw-r-- 1 kali kali 24K Sep  5 10:59 Billing_Letter.doc
+-rw-rw-r-- 1 kali kali 227 Sep  5 10:59 confirmation.txt
+-rw-rw-r-- 1 kali kali 121 Sep  5 10:59 letter1.txt
+-rw-rw-r-- 1 kali kali 23K Sep  5 11:00 Regrets.doc

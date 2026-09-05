@@ -1,0 +1,17 @@
+=== SCALEPL CARVING SUMMARY ===
+
+Evidence image:
+Ch01InChap01.dd
+
+JPEG carved: 0
+DOC candidates carved: 10
+
+Valid Word documents identified:
+  doc-2-0/00000002.doc - Billing Letter
+  doc-2-0/00000004.doc - Regrets
+  doc-3-0/00000007.doc - duplicate Billing Letter
+  doc-3-0/00000009.doc - duplicate Regrets
+
+Conclusion:
+Scalpel identified Word-document content but produced
+duplicates, incomplete/invalid candidates, and over-carved data.
