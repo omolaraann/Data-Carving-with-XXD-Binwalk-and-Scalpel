@@ -1,936 +1,774 @@
-## 1. Practical Overview
+# 🔎 Data Carving with XXD, Binwalk & Scalpel
 
-This laboratory demonstrates practical techniques for examining, identifying and recovering digital artefacts when normal file-system metadata may be missing, damaged or unreliable.
+> **SBT-DF202 — Computer and Digital Forensics | Practical Lab 3**
 
-The exercise focuses on **data carving**, which involves identifying files from their underlying binary structures, such as file signatures, rather than relying exclusively on file-system metadata.
-
-The laboratory covers:
-
-* Hexadecimal analysis using `xxd`
-* Identification of JPEG file signatures
-* Hex dump creation and reconstruction
-* Cryptographic hash verification
-* String and metadata-like content analysis
-* File-system and block-level analysis using The Sleuth Kit
-* Embedded-file identification using Binwalk
-* Partition analysis using `mmls`
-* Deleted-file recovery using Scalpel
-* Verification of recovered files using MD5 and SHA-256
-* Documentation of forensic findings, screenshots, commands and limitations
-
-All analysis was performed on the authorised laboratory evidence provided for the exercise. The original evidence files were preserved and were not intentionally modified.
+A hands-on digital forensics laboratory demonstrating **hexadecimal analysis, file-signature identification, forensic image examination, deleted-file recovery, file carving, embedded-content analysis, and cryptographic verification** using Kali Linux and open-source forensic tools.
 
 ---
 
-# 2. Objectives
+## 📌 Overview
 
-The objectives of this practical were to:
+Data carving is a digital forensic technique used to identify and recover files from raw data based primarily on their **binary structure and file signatures**, rather than relying entirely on file-system metadata.
 
-1. Explain why data carving is useful when file-system metadata is unavailable or unreliable.
-2. Examine binary file content using `xxd`.
-3. Identify JPEG Start of Image (SOI) and End of Image (EOI) signatures.
-4. Create and reverse a hexadecimal dump.
-5. Verify reconstructed content using cryptographic hashes.
-6. Examine visible strings and metadata-like information within a JPEG file.
-7. Use The Sleuth Kit to examine forensic image structures at inode, block and sector levels.
-8. Identify embedded content using Binwalk.
-9. Analyse the partition structure of a forensic USB image.
-10. Recover deleted files using Scalpel.
-11. Hash recovered evidence and document the results.
-12. Maintain a repeatable and forensically defensible workflow.
+This practical explored a complete evidence-analysis workflow, beginning with preservation and hashing of laboratory evidence and progressing through low-level hexadecimal inspection, forensic file-system analysis, deleted-file recovery and signature-based carving.
 
----
+The investigation used:
 
-# 3. Evidence and Working Directory
+* `xxd` for hexadecimal inspection and reconstruction
+* `strings` for readable-content analysis
+* The Sleuth Kit for forensic image and file-system analysis
+* `Binwalk` for signature and embedded-content identification
+* `Scalpel` for signature-based file carving
+* `7z` for forensic archive extraction
+* `md5sum` and `sha256sum` for cryptographic verification
 
-## 3.1 Authorised Evidence
-
-The laboratory supplied the following evidence:
-
-| Evidence            | Description                       | Purpose                            |
-| ------------------- | --------------------------------- | ---------------------------------- |
-| `Ch01InChap01.dd`   | Forensic DD image                 | Sleuth Kit / data-unit analysis    |
-| `J_ub_law.jpg`      | JPEG sample                       | Hexadecimal and signature analysis |
-| `120M.7z`           | Compressed USB forensic image     | Scalpel carving exercise           |
-| `File_carving.docx` | Instructor demonstration material | Binwalk practice, if available     |
+The work was conducted against **authorised laboratory evidence supplied for the exercise**.
 
 ---
 
-## 3.2 Working Directory
+## 🎯 Objectives
 
-A dedicated working directory was created to separate laboratory evidence from analysis output.
+The practical objectives were to:
 
-Example structure:
+* Understand the principles of data carving.
+* Examine binary data using hexadecimal representations.
+* Identify JPEG file signatures and structural markers.
+* Create and reverse a hexadecimal dump.
+* Verify reconstructed evidence using cryptographic hashes.
+* Extract and examine readable strings from binary files.
+* Analyse a forensic image using The Sleuth Kit.
+* Examine file-system structures and deleted directory entries.
+* Recover deleted files using `icat`.
+* Investigate raw storage blocks using `blkcat`.
+* Identify recognised signatures and structures using Binwalk.
+* Extract recoverable files using Scalpel.
+* Validate recovered artefacts using MD5 and SHA-256.
+* Document forensic findings, limitations and tool behaviour.
+
+---
+
+# 🧪 Evidence Examined
+
+The laboratory provided the following primary evidence:
+
+| Evidence            | Description               | Purpose                                   |
+| ------------------- | ------------------------- | ----------------------------------------- |
+| `J_ub_law.jpg`      | JPEG image                | Hexadecimal/signature analysis            |
+| `Ch01InChap01.dd`   | Forensic disk image       | File-system and deleted-file analysis     |
+| `120M.7z`           | Compressed forensic image | USB carving exercise                      |
+| `File_carving.docx` | Instructor material       | Referenced by the laboratory instructions |
+
+### Evidence Handling
+
+The original evidence was retained separately from working and recovered artefacts.
+
+The analysis directory was organised as follows:
 
 ```text
 Lab3_Data_Carving/
-├── evidence/
+│
+├── original_evidence/
+│   ├── J_ub_law.jpg
+│   ├── Ch01InChap01.dd
+│   └── 120M.7z
+│
 ├── working/
-├── hex/
-├── binwalk/
-├── scalpel/
+│   └── J_ub_law_working.jpg
+│
 ├── recovered/
+│   ├── Billing_Letter.doc
+│   ├── confirmation.txt
+│   ├── letter1.txt
+│   └── Regrets.doc
+│
 ├── hashes/
-├── screenshots/
-└── report/
+│   ├── original_md5.txt
+│   ├── original_sha256.txt
+│   ├── recovered_md5.txt
+│   └── recovered_sha256.txt
+│
+├── scalpel_output/
+│   ├── audit.txt
+│   ├── doc-2-0/
+│   └── doc-3-0/
+│
+├── tsk_analysis/
+│   ├── Billing_Letter_strings.txt
+│   ├── Regrets_strings.txt
+│   ├── binwalk_dd.txt
+│   ├── fls_deleted_files.txt
+│   ├── fls_recursive.txt
+│   ├── fsstat.txt
+│   ├── img_stat.txt
+│   ├── mmls.txt
+│   ├── recovered_file_types.txt
+│   ├── recovered_files.txt
+│   ├── scalpel_run.txt
+│   └── scalpel_summary.txt
+│
+└── xxd_analysis/
+    ├── J_ub_law.hex
+    ├── J_ub_law_reconstructed.jpg
+    ├── binwalk_jpeg.txt
+    ├── exiftool_output.txt
+    ├── jpeg_footer.txt
+    ├── jpeg_header.txt
+    ├── jpeg_metadata_strings.txt
+    └── jpeg_strings.txt
 ```
-
-The original evidence was retained in the `evidence/` directory and analysis outputs were written to separate working/output directories.
 
 ---
 
-# 4. Evidence Preservation and Initial Hashing
+# 🔐 1. Evidence Integrity & Hashing
 
-Before analysis, cryptographic hashes were calculated for the supplied evidence files.
+Cryptographic hashes were calculated before and during the analysis to provide reference values for evidence integrity.
 
-### Commands
+### Original Evidence
 
-```bash
-md5sum J_ub_law.jpg
-sha256sum J_ub_law.jpg
-```
+| Evidence          | MD5                                | SHA-256                                                            |
+| ----------------- | ---------------------------------- | ------------------------------------------------------------------ |
+| `J_ub_law.jpg`    | `83a360ac7f7e0ca318e5bfe39f95f137` | `238ff34393c50e52c0e8b14fcff8ec7dc29e23914dbc435f8ef998d172a91468` |
+| `Ch01InChap01.dd` | `a117773bcf1fc88ec0ab8e0a349fbbcb` | `3ce8053e4f3d9c8ab98b3aadb2480685efb8e4980d34297b83bd5a09b1a7b122` |
+| `120M.7z`         | `dfe7b5424e54cd1bf50d5df47aceeb3c` | `2d2a3d93c9ec65bcad9f89c9894429ea72caa8add07726a3b96ec9a6ab6a58ce` |
 
-For the DD image:
-
-```bash
-md5sum Ch01InChap01.dd
-sha256sum Ch01InChap01.dd
-```
-
-For the extracted USB image:
-
-```bash
-md5sum <USB_IMAGE>
-sha256sum <USB_IMAGE>
-```
-
-### Initial Hash Results
-
-| Evidence          | MD5                 | SHA-256             |
-| ----------------- | ------------------- | ------------------- |
-| `J_ub_law.jpg`    | **[INSERT RESULT]** | **[INSERT RESULT]** |
-| `Ch01InChap01.dd` | **[INSERT RESULT]** | **[INSERT RESULT]** |
-| `<USB_IMAGE>`     | **[INSERT RESULT]** | **[INSERT RESULT]** |
-
-These hashes provide reference values that can be used to detect unintended changes to the evidence during the investigation.
-
-### Screenshot
-
-![Initial Evidence Hashes](screenshots/01_initial_hashes.png)
+These values provide a reproducible reference for detecting unintended modification of the supplied evidence.
 
 ---
 
-# 5. Part A — JPEG File Signature and Hex Analysis
+# 🧩 2. JPEG Hexadecimal Analysis with XXD
 
-## 5.1 Examining the JPEG with xxd
+## 2.1 JPEG Signature Identification
 
-The JPEG sample was examined using `xxd` to view its binary contents in hexadecimal format.
+The JPEG sample was examined using:
 
 ```bash
 xxd J_ub_law.jpg | head
 ```
 
-The beginning of the file was examined for the JPEG file signature.
-
-JPEG files normally begin with the **Start of Image (SOI)** marker:
+The JPEG began with the standard **Start of Image (SOI)** marker:
 
 ```text
 FF D8
 ```
 
-The SOI marker indicates the beginning of a JPEG file.
+The SOI marker identifies the beginning of the JPEG binary structure.
 
-### Observed Header
-
-```text
-[INSERT YOUR xxd OUTPUT / RELEVANT BYTES]
-```
-
-### Screenshot
-
-![JPEG Header Analysis](screenshots/02_jpeg_header_xxd.png)
-
----
-
-## 5.2 Identifying the JPEG Footer
-
-The end of the JPEG was examined to identify the **End of Image (EOI)** marker.
-
-The JPEG EOI signature is:
-
-```text
-FF D9
-```
-
-Command used:
+The end of the file was subsequently examined using:
 
 ```bash
 xxd J_ub_law.jpg | tail
 ```
 
-### Observed Footer
+The standard **End of Image (EOI)** marker was identified:
 
 ```text
-[INSERT YOUR OUTPUT]
+FF D9
 ```
 
-The presence of `FF D9` at the end of the JPEG confirms the expected JPEG termination marker.
-
-### Screenshot
-
-![JPEG Footer Analysis](screenshots/03_jpeg_footer_xxd.png)
+This confirmed the expected JPEG start and termination markers.
 
 ---
 
-# 6. Creating a Plain Hexadecimal Dump
+## 2.2 Creating a Plain Hex Dump
 
-A plain hexadecimal representation of the JPEG was created using:
+A plain hexadecimal representation was generated with:
 
 ```bash
 xxd -p J_ub_law.jpg > J_ub_law.hex
 ```
 
-The resulting file contained the hexadecimal representation of the original JPEG data.
+The resulting hexadecimal file was retained under:
 
-The generated dump was inspected to confirm that the binary content had been represented as hexadecimal data.
-
-### Screenshot
-
-![Plain Hex Dump](screenshots/04_plain_hex_dump.png)
+```text
+xxd_analysis/J_ub_law.hex
+```
 
 ---
 
-# 7. Reconstructing the JPEG from the Hex Dump
+## 2.3 Reconstructing the JPEG
 
-The hexadecimal dump was converted back into binary JPEG data using the reverse-hexdump functionality of `xxd`.
+The hexadecimal representation was converted back into binary form:
 
 ```bash
 xxd -r -p J_ub_law.hex J_ub_law_reconstructed.jpg
 ```
 
-The reconstructed file was then examined and compared against the original file.
-
-### File Comparison
+The reconstructed file was then compared byte-for-byte with the original:
 
 ```bash
 cmp J_ub_law.jpg J_ub_law_reconstructed.jpg
 ```
 
-If no output was returned, this indicated that the files were identical byte-for-byte.
+No difference was reported by `cmp`.
 
-### Screenshot
+### Result
 
-![JPEG Reconstruction](screenshots/05_jpeg_reconstruction.png)
+The reconstructed JPEG was therefore **byte-for-byte identical to the original**.
 
 ---
 
-# 8. Hash Verification of Reconstructed JPEG
+# 🧮 3. Cryptographic Verification of Reconstruction
 
-The original and reconstructed JPEG files were hashed.
+The original and reconstructed JPEG were hashed using:
 
 ```bash
 md5sum J_ub_law.jpg J_ub_law_reconstructed.jpg
 ```
 
+and:
+
 ```bash
 sha256sum J_ub_law.jpg J_ub_law_reconstructed.jpg
 ```
 
-### Results
+Both files produced matching cryptographic hashes.
 
-| File               | MD5          | SHA-256      |
-| ------------------ | ------------ | ------------ |
-| Original JPEG      | **[INSERT]** | **[INSERT]** |
-| Reconstructed JPEG | **[INSERT]** | **[INSERT]** |
+| File               | MD5                                | SHA-256                                                            |
+| ------------------ | ---------------------------------- | ------------------------------------------------------------------ |
+| Original JPEG      | `83a360ac7f7e0ca318e5bfe39f95f137` | `238ff34393c50e52c0e8b14fcff8ec7dc29e23914dbc435f8ef998d172a91468` |
+| Reconstructed JPEG | `83a360ac7f7e0ca318e5bfe39f95f137` | `238ff34393c50e52c0e8b14fcff8ec7dc29e23914dbc435f8ef998d172a91468` |
 
 ### Finding
 
-The reconstructed JPEG produced **[matching / non-matching]** MD5 and SHA-256 values when compared with the original.
-
-**Interpretation:**
-[If matching: The matching hashes demonstrate that the reconstructed file contains the same binary content as the original.]
-
-[If non-matching: Explain the observed difference based on the actual result.]
-
-### Screenshot
-
-![Hash Comparison](screenshots/06_hash_comparison.png)
+The matching MD5 and SHA-256 values demonstrate that the hexadecimal dump was successfully reversed without altering the binary content of the JPEG.
 
 ---
 
-# 9. Part B — Strings and Metadata-Like Content Analysis
+# 🔍 4. JPEG Strings & Metadata Analysis
 
-The JPEG was examined for readable strings that could potentially provide information about the source or creation of the file.
-
-The following command was used:
+Readable content was examined using:
 
 ```bash
 strings J_ub_law.jpg
 ```
 
-The output was reviewed for information relating to:
+Additional searches were performed to identify potentially useful metadata-like strings.
 
-* Camera manufacturer
-* Camera/software information
-* File creation or modification information
-* Names
-* Dates
-* Other readable metadata-like strings
+The JPEG was also examined using file-identification and metadata-analysis tools.
 
-### Search Examples
+### Observations
 
-```bash
-strings J_ub_law.jpg | grep -i camera
-```
+The file was identified as a JPEG containing EXIF information associated with:
 
-```bash
-strings J_ub_law.jpg | grep -Ei "make|model|software|date|name"
-```
+* **Manufacturer:** Nikon Corporation
+* **Camera family/model information:** Nikon D4
+* **Embedded EXIF/TIFF structures**
+* Adobe copyright-related data at offset `0x68DC`
 
-### Findings
+The file was identified as a JPEG EXIF image by the `file` utility.
 
-| Item searched          | Result                      |
-| ---------------------- | --------------------------- |
-| Camera manufacturer    | **[FOUND / NOT FOUND]**     |
-| Camera model           | **[FOUND / NOT FOUND]**     |
-| Software               | **[FOUND / NOT FOUND]**     |
-| Name                   | **[FOUND / NOT FOUND]**     |
-| Date                   | **[FOUND / NOT FOUND]**     |
-| Other relevant strings | **[INSERT ACTUAL FINDING]** |
-
-Only information actually observed in the command output was recorded.
-
-### Screenshot
-
-![Strings Analysis](screenshots/07_strings_analysis.png)
+These observations demonstrate how binary artefacts can contain useful contextual information even without opening the image in a graphical viewer.
 
 ---
 
-# 10. Part C — The Sleuth Kit Analysis
+# 💽 5. The Sleuth Kit Analysis
 
-The supplied forensic image was examined using The Sleuth Kit (TSK).
+The forensic image `Ch01InChap01.dd` was analysed using multiple components of **The Sleuth Kit (TSK)**.
 
-The tools used included:
+Tools used included:
 
-* `img_stat`
-* `mmls`
-* `fsstat`
-* `fls`
-* `icat`
-* `blkcat`
+```text
+img_stat
+mmls
+fsstat
+fls
+icat
+blkcat
+```
 
 ---
 
-## 10.1 img_stat
+## 5.1 Image Analysis — img_stat
 
-The image metadata was examined using:
+The image was examined using:
 
 ```bash
 img_stat Ch01InChap01.dd
 ```
 
-### Findings
+The image was identified as a raw forensic image with a size of:
 
 ```text
-[INSERT RELEVANT OUTPUT]
+1,474,560 bytes
 ```
 
-The output was reviewed to identify the image type, size and other available image-level information.
+The sector size was:
 
-### Screenshot
-
-![img\_stat](screenshots/08_img_stat.png)
+```text
+512 bytes
+```
 
 ---
 
-# 11. Partition Analysis with mmls
+## 5.2 Partition Analysis — mmls
 
-The partition structure was examined using:
+The following command was executed:
 
 ```bash
 mmls Ch01InChap01.dd
 ```
 
-### Observed Partition Structure
+The image did not return a conventional partition-table listing.
+
+This was significant because the image contained a **standalone FAT12 file system beginning at sector 0**, rather than a conventional partition beginning at a non-zero offset.
+
+Therefore, subsequent file-system analysis was performed without applying an arbitrary partition offset.
+
+---
+
+## 5.3 FAT12 File-System Analysis — fsstat
+
+The file system was examined using:
+
+```bash
+fsstat Ch01InChap01.dd
+```
+
+The image was identified as:
 
 ```text
-[INSERT YOUR ACTUAL mmls OUTPUT]
+FAT12
 ```
 
-The partition information was used to determine the appropriate offset for subsequent file-system analysis.
+Important characteristics included:
 
-**Important:** The offset used in the analysis was based on the actual `mmls` output rather than assuming the example value supplied in the laboratory instructions.
+| Attribute         | Observed value         |
+| ----------------- | ---------------------- |
+| File system       | FAT12                  |
+| Sector size       | 512 bytes              |
+| Boot sector       | Sector 0               |
+| FAT 0             | Sectors 1–9            |
+| FAT 1             | Sectors 10–18          |
+| Root directory    | Sectors 19–32          |
+| Data/cluster area | Beginning at sector 33 |
 
-### Identified Offset
-
-**Partition start sector:** `[INSERT ACTUAL VALUE]`
-
-### Screenshot
-
-![mmls Partition Analysis](screenshots/09_mmls.png)
+This provided the structural context required for examining deleted directory entries and recovering their content.
 
 ---
 
-# 12. File-System Analysis with fsstat
+# 🗂️ 6. Deleted File Identification with FLS
 
-The file-system information was examined using:
+The file-system directory structure was examined using:
 
 ```bash
-fsstat -o <OFFSET> Ch01InChap01.dd
+fls -r -p Ch01InChap01.dd
 ```
 
-### Findings
+Deleted entries were identified within the FAT12 image.
+
+### Deleted artefacts identified
 
 ```text
-[INSERT RELEVANT OUTPUT]
+Billing Letter.doc
+confirmation.txt
+letter1.txt
+Regrets.doc
 ```
 
-The output was reviewed to identify file-system characteristics and structures relevant to further investigation.
-
-### Screenshot
-
-![fsstat Analysis](screenshots/10_fsstat.png)
-
----
-
-# 13. File Listing with fls
-
-Files and directories within the forensic image were examined using:
-
-```bash
-fls -o <OFFSET> Ch01InChap01.dd
-```
-
-Deleted entries were specifically investigated where appropriate.
-
-Example:
-
-```bash
-fls -d -o <OFFSET> Ch01InChap01.dd
-```
-
-### Findings
+The image also contained allocated files including:
 
 ```text
-[INSERT ACTUAL OUTPUT]
+Client Info.mdb
+Income.xls
 ```
 
-### Identified Inode / Metadata Address
-
-**Inode / metadata address:** `[INSERT ACTUAL VALUE]`
-
-### Screenshot
-
-![fls Analysis](screenshots/11_fls.png)
+The deleted entries provided metadata references that could be used with `icat` to recover the underlying file content.
 
 ---
 
-# 14. Extracting File Content with icat
+# 📤 7. Deleted File Recovery with ICAT
 
-Where an appropriate metadata/inode address was identified, `icat` was used to extract the corresponding file content.
+The deleted files were recovered from the forensic image using `icat`.
 
-```bash
-icat -o <OFFSET> Ch01InChap01.dd <INODE> > extracted_file
-```
+Recovered artefacts included:
 
-The extracted file was then examined and hashed.
+| File                 | Result                 |
+| -------------------- | ---------------------- |
+| `Billing_Letter.doc` | Successfully recovered |
+| `confirmation.txt`   | Successfully recovered |
+| `letter1.txt`        | Successfully recovered |
+| `Regrets.doc`        | Successfully recovered |
 
-### Result
-
-**Extracted file:** `[INSERT NAME]`
-**Inode:** `[INSERT VALUE]`
-**File type:** `[INSERT TYPE]`
-
-### Screenshot
-
-![icat Extraction](screenshots/12_icat.png)
-
----
-
-# 15. Block-Level Examination with blkcat
-
-Where required, block-level data was examined using:
-
-```bash
-blkcat -o <OFFSET> Ch01InChap01.dd <BLOCK_NUMBER>
-```
-
-### Observed Block
-
-**Block number:** `[INSERT ACTUAL VALUE]`
-
-### Finding
+The recovered files were stored separately under:
 
 ```text
-[INSERT RELEVANT OBSERVATION]
+recovered/
 ```
 
-The block-level examination demonstrated how raw storage units can be inspected independently of normal file browsing.
-
-### Screenshot
-
-![blkcat Analysis](screenshots/13_blkcat.png)
-
----
-
-# 16. Part D — Embedded File Discovery with Binwalk
-
-Binwalk was used to identify known file signatures and potentially embedded content within the supplied evidence.
-
-The initial scan was performed using:
-
-```bash
-binwalk <TARGET_FILE>
-```
-
-### Results
+### Recovered file types
 
 ```text
-[INSERT ACTUAL BINWALK OUTPUT]
+Billing_Letter.doc  → Microsoft Word document
+confirmation.txt    → ASCII text
+letter1.txt         → ASCII text
+Regrets.doc         → Microsoft Word document
 ```
 
-The output was examined for recognised embedded file structures, compression formats or other identifiable signatures.
-
-### Screenshot
-
-![Binwalk Scan](screenshots/14_binwalk_scan.png)
+The recovered Word documents were identified as valid Word files and were subjected to further examination.
 
 ---
 
-# 17. Binwalk Extraction
+# 🧱 8. Block-Level Examination with BLKCAT
 
-Where embedded content was identified and extraction was appropriate, Binwalk extraction was performed using:
+Raw storage blocks were examined using:
 
 ```bash
-binwalk -e <TARGET_FILE>
+blkcat
 ```
 
-The resulting extraction directory was reviewed.
+This provided a lower-level view of the data stored within the forensic image.
 
-### Extracted Content
-
-```text
-[INSERT ACTUAL FINDINGS]
-```
-
-If the instructor-provided `File_carving.docx` was unavailable, this was documented as a laboratory limitation rather than assuming its contents.
-
-### Screenshot
-
-![Binwalk Extraction](screenshots/15_binwalk_extraction.png)
+Block-level examination demonstrated that forensic analysis can progress beneath normal file-system presentation and inspect the underlying storage units directly.
 
 ---
 
-# 18. Part E — USB Forensic Image Preparation
+# 🕵️ 9. Embedded Content Analysis with Binwalk
 
-The supplied `120M.7z` archive was extracted to obtain the USB forensic image.
+Binwalk was used to identify known signatures and embedded structures.
 
-The archive was extracted using the appropriate extraction utility.
+### JPEG Analysis
 
-Example:
+Binwalk identified the JPEG structure, including:
+
+```text
+JPEG image data
+EXIF metadata
+TIFF little-endian structure
+Adobe copyright-related data
+```
+
+The JPEG analysis demonstrated how signature-based tools can quickly identify recognised structures within binary evidence.
+
+### DD Image
+
+Binwalk was also executed against the forensic DD image.
+
+No additional recognised signatures were reported in the resulting scan.
+
+This does **not** mean that the image contained no recoverable data. The subsequent TSK analysis demonstrated that deleted files were present and recoverable from the FAT12 file system.
+
+---
+
+# 🧰 10. USB Forensic Image Preparation
+
+The supplied:
+
+```text
+120M.7z
+```
+
+archive was extracted using:
 
 ```bash
 7z x 120M.7z
 ```
 
-### Extracted Image
+The extracted image was subsequently used for the Scalpel carving exercise.
 
-**Image filename:** `[INSERT ACTUAL IMAGE NAME]`
-
-**Image size:** `[INSERT]`
-
-### Screenshot
-
-![USB Image Extraction](screenshots/16_usb_extraction.png)
-
----
-
-# 19. Hashing the USB Image
-
-The extracted USB image was hashed before analysis.
-
-```bash
-md5sum <USB_IMAGE>
-```
-
-```bash
-sha256sum <USB_IMAGE>
-```
-
-### Results
-
-| Image              | MD5          | SHA-256      |
-| ------------------ | ------------ | ------------ |
-| USB forensic image | **[INSERT]** | **[INSERT]** |
-
-### Screenshot
-
-![USB Image Hash](screenshots/17_usb_hash.png)
-
----
-
-# 20. USB Partition Analysis
-
-The USB image was examined using:
-
-```bash
-mmls <USB_IMAGE>
-```
-
-### Actual Partition Structure
+The original compressed evidence remained preserved in:
 
 ```text
-[INSERT YOUR ACTUAL OUTPUT]
+original_evidence/
 ```
-
-The partition start sector was identified from the output.
-
-**Confirmed partition offset:** `[INSERT VALUE]`
-
-The value was determined from the evidence rather than copied directly from the laboratory example.
-
-### Screenshot
-
-![USB mmls](screenshots/18_usb_mmls.png)
 
 ---
 
-# 21. Part F — Scalpel File Carving
+# 🪚 11. Scalpel File Carving
 
-Scalpel was configured to enable the required file types for carving, particularly JPEG/JPG files.
+Scalpel was configured with the required signatures and executed against the USB forensic image.
 
-The configuration file was reviewed:
+The carving operation used:
 
 ```bash
-sudo nano /etc/scalpel/scalpel.conf
+sudo scalpel \
+-c /etc/scalpel/scalpel.conf \
+-o ~/Lab3_Data_Carving/scalpel_output \
+~/Lab3_Data_Carving/original_evidence/Ch01InChap01.dd
 ```
 
-The required JPEG signatures were enabled according to the laboratory instructions.
-
-### Configuration
+The output was retained under:
 
 ```text
-[INSERT RELEVANT ENABLED SIGNATURES]
+scalpel_output/
 ```
-
-### Screenshot
-
-![Scalpel Configuration](screenshots/19_scalpel_configuration.png)
 
 ---
 
-# 22. Running Scalpel
+## 11.1 Scalpel Results
 
-A dedicated output directory was created for recovered evidence.
-
-```bash
-mkdir -p scalpel_output
-```
-
-Scalpel was then run against the forensic USB image.
-
-```bash
-sudo scalpel <USB_IMAGE> -o scalpel_output
-```
-
-### Result
+Scalpel produced:
 
 ```text
-[INSERT ACTUAL SCALPEL OUTPUT]
+10 DOC candidates
+0 JPEG candidates
 ```
 
-The carving process was allowed to operate against the forensic image while preserving the original evidence.
+Several of the carved DOC candidates were examined to determine whether they represented valid recoverable documents or false positives.
 
-### Screenshot
+### Valid Word-document candidates
 
-![Scalpel Execution](screenshots/20_scalpel_execution.png)
-
----
-
-# 23. Recovered Files
-
-The Scalpel output directory was examined to identify recovered artefacts.
-
-```bash
-find scalpel_output -type f
-```
-
-The recovered files were reviewed and categorised according to their identified file types.
-
-### Recovery Summary
-
-| # | Recovered File | File Type  |       Size | MD5        | SHA-256    |
-| - | -------------- | ---------- | ---------: | ---------- | ---------- |
-| 1 | `[INSERT]`     | JPEG       | `[INSERT]` | `[INSERT]` | `[INSERT]` |
-| 2 | `[INSERT]`     | JPEG       | `[INSERT]` | `[INSERT]` | `[INSERT]` |
-| 3 | `[INSERT]`     | `[INSERT]` | `[INSERT]` | `[INSERT]` | `[INSERT]` |
-
-At least two recovered JPEG files were examined where available.
-
----
-
-# 24. Recovered JPEG — Evidence 1
-
-**Filename:** `[INSERT]`
-
-**File type:**
-
-```bash
-file <RECOVERED_FILE>
-```
-
-**Size:**
-
-```bash
-ls -lh <RECOVERED_FILE>
-```
-
-**MD5:**
-
-```bash
-md5sum <RECOVERED_FILE>
-```
-
-**SHA-256:**
-
-```bash
-sha256sum <RECOVERED_FILE>
-```
-
-### Findings
-
-[Describe what was actually observed when the recovered JPEG was examined.]
-
-### Screenshot
-
-![Recovered JPEG 1](screenshots/21_recovered_jpeg_01.png)
-
----
-
-# 25. Recovered JPEG — Evidence 2
-
-**Filename:** `[INSERT]`
-
-**File type:**
-
-```bash
-file <RECOVERED_FILE>
-```
-
-**Size:**
-
-```bash
-ls -lh <RECOVERED_FILE>
-```
-
-**MD5:**
-
-```bash
-md5sum <RECOVERED_FILE>
-```
-
-**SHA-256:**
-
-```bash
-sha256sum <RECOVERED_FILE>
-```
-
-### Findings
-
-[Describe what was actually observed.]
-
-### Screenshot
-
-![Recovered JPEG 2](screenshots/22_recovered_jpeg_02.png)
-
----
-
-# 26. Scalpel audit.txt
-
-Scalpel generates an audit file documenting aspects of the carving operation.
-
-The audit file was reviewed:
-
-```bash
-cat scalpel_output/audit.txt
-```
-
-or, depending on the generated directory structure:
-
-```bash
-find scalpel_output -name audit.txt -exec cat {} \;
-```
-
-### Audit Findings
+The following candidates contained recognisable Word-document content:
 
 ```text
-[INSERT RELEVANT AUDIT OUTPUT]
+doc-2-0/00000002.doc
+doc-2-0/00000004.doc
+
+doc-3-0/00000007.doc
+doc-3-0/00000009.doc
 ```
 
-The audit information was retained as part of the laboratory evidence and documentation.
+The results indicated that:
 
-### Screenshot
-
-![Scalpel Audit](screenshots/23_scalpel_audit.png)
-
----
-
-# 27. Evidence Hash Verification
-
-Cryptographic hashes were calculated for recovered files to provide unique identifiers for the recovered artefacts.
-
-Example:
-
-```bash
-md5sum scalpel_output/*/*
-```
-
-```bash
-sha256sum scalpel_output/*/*
-```
-
-### Hash Table
-
-| Artefact             | MD5        | SHA-256    |
-| -------------------- | ---------- | ---------- |
-| `[Recovered file 1]` | `[INSERT]` | `[INSERT]` |
-| `[Recovered file 2]` | `[INSERT]` | `[INSERT]` |
-| `[Recovered file 3]` | `[INSERT]` | `[INSERT]` |
-
-Hash values provide a means of documenting the recovered artefacts and detecting subsequent changes.
+* `00000002.doc` and `00000007.doc` represented duplicate Billing Letter content.
+* `00000004.doc` and `00000009.doc` represented duplicate Regrets content.
+* Other candidates were incomplete, invalid or over-carved.
 
 ---
 
-# 28. Key Findings
+# ⚠️ 12. Scalpel Limitations & False Positives
 
-The practical demonstrated that files can be identified and recovered based on their underlying binary structures even when conventional file-system information may not be sufficient.
+One of the most important findings from the exercise was that **file carving is not automatically equivalent to successful file recovery**.
 
-### Key findings included:
+Scalpel identified multiple DOC candidates, but not every candidate represented a valid standalone document.
 
-* The JPEG sample was examined at hexadecimal level using `xxd`.
-* The JPEG SOI signature `FF D8` and EOI signature `FF D9` were identified.
-* A hexadecimal dump was successfully converted back into binary JPEG data.
-* The reconstructed JPEG was compared against the original using cryptographic hashes.
-* Strings and metadata-like information were examined without assuming information that was not present.
-* The Sleuth Kit was used to examine forensic image structures and identify relevant data units.
-* `mmls` was used to determine the actual partition offset from the forensic image.
-* Binwalk was used to identify recognised file signatures and embedded structures.
-* Scalpel was used to carve recoverable files from the USB forensic image.
-* Recovered artefacts were individually examined and hashed.
-* Scalpel's `audit.txt` was reviewed as part of the carving documentation.
+Observed issues included:
 
----
+* Duplicate recovered documents.
+* Incomplete files.
+* Invalid DOC candidates.
+* Over-carved data.
+* File-boundary uncertainty.
 
-# 29. Forensic Integrity and Handling
+This demonstrates an important forensic principle:
 
-The following forensic handling principles were applied throughout the practical:
+> **A carving tool's output must be validated rather than automatically treated as confirmed evidence.**
 
-1. Original evidence files were preserved.
-2. Analysis was performed on the authorised laboratory evidence.
-3. Evidence was hashed before analysis.
-4. Analysis outputs were stored separately from the original evidence.
-5. Actual offsets, inode values and block numbers were obtained from command output.
-6. No placeholder values were used in the final findings.
-7. Recovered files were hashed to provide verifiable identifiers.
-8. Errors and limitations were documented rather than concealed.
-9. Commands used during analysis were recorded to support repeatability.
+The results were therefore compared against the files recovered using The Sleuth Kit.
 
 ---
 
-# 30. Limitations
+# 🔐 13. Recovered Artefact Hashes
 
-The following limitations were identified during the exercise:
+Recovered artefacts were independently hashed using MD5 and SHA-256.
 
-* [INSERT ANY COMMAND ERRORS OR TOOL LIMITATIONS]
-* [INSERT IF File_carving.docx WAS NOT AVAILABLE]
-* [INSERT ANY FILES THAT COULD NOT BE RECOVERED]
-* [INSERT ANY CORRUPTED RECOVERED FILES]
-* [INSERT ANY OTHER OBSERVED LIMITATION]
+| Artefact             | MD5                                | SHA-256                                                            |
+| -------------------- | ---------------------------------- | ------------------------------------------------------------------ |
+| `Billing_Letter.doc` | `9fe241d0dde27e83442010b3eee5ad32` | `7eefeb4187bb551f366da33bcab5b7224f905bb98f37797c28f183f72aec2e99` |
+| `confirmation.txt`   | `18e391549e4a8bc990b264f590fb33bb` | `51b981e09b72739fac67c2d0124a2603cae8c35e075f5e2f66fbad03d53afcc0` |
+| `letter1.txt`        | `49f68104660a091a4c015e86f3151237` | `341065f2c3c2168e246aa9a346439dfa4e6e4c55de4b1b8ecc78e4b83206545f` |
+| `Regrets.doc`        | `ebcfbf22bdf81a60f6a16709d30c1dad` | `109048540a0a1a452f9346522a325219b471eae41b85a6298890e94ae750b965` |
 
-Where an expected artefact or metadata value was not present, it was recorded as **"not found"** rather than inferred.
-
----
-
-# 31. Conclusion
-
-This laboratory provided practical experience in data carving and low-level forensic examination of digital storage evidence.
-
-The use of `xxd` demonstrated how binary file structures and signatures can be examined directly. JPEG SOI and EOI markers provided an example of how known file signatures can assist with identifying file boundaries and reconstructing binary content.
-
-The Sleuth Kit provided a method for examining forensic images at the image, partition, file-system, metadata and block levels. Binwalk demonstrated the identification of embedded or recognised file structures, while Scalpel demonstrated signature-based recovery of files from a forensic USB image.
-
-The exercise reinforced the importance of preserving original evidence, calculating cryptographic hashes, using actual evidence-derived values, maintaining an auditable workflow and clearly documenting both successful findings and limitations.
+These values provide reproducible identifiers for the recovered artefacts.
 
 ---
 
-# 32. Tools Used
+# 📊 14. Investigation Summary
 
-| Tool        | Purpose                                   |
-| ----------- | ----------------------------------------- |
-| `xxd`       | Hexadecimal inspection and reconstruction |
-| `strings`   | Extraction of readable strings            |
-| `img_stat`  | Forensic image information                |
-| `mmls`      | Partition analysis                        |
-| `fsstat`    | File-system analysis                      |
-| `fls`       | File and deleted-file listing             |
-| `icat`      | File extraction                           |
-| `blkcat`    | Block-level examination                   |
-| `binwalk`   | Embedded file/signature identification    |
-| `Scalpel`   | File carving and recovery                 |
-| `md5sum`    | MD5 hashing                               |
-| `sha256sum` | SHA-256 hashing                           |
-| `7z`        | Extraction of the supplied archive        |
+| Technique                  | Tool        | Result                                     |
+| -------------------------- | ----------- | ------------------------------------------ |
+| Hexadecimal inspection     | `xxd`       | JPEG binary structure examined             |
+| JPEG signature analysis    | `xxd`       | `FF D8` and `FF D9` identified             |
+| Hex reconstruction         | `xxd -r`    | JPEG reconstructed successfully            |
+| Binary comparison          | `cmp`       | Original and reconstructed files matched   |
+| Cryptographic verification | MD5/SHA-256 | Matching hashes confirmed reconstruction   |
+| String analysis            | `strings`   | Readable binary content examined           |
+| Image analysis             | `img_stat`  | Raw forensic image characterised           |
+| Partition analysis         | `mmls`      | No conventional partition table identified |
+| File-system analysis       | `fsstat`    | FAT12 structure identified                 |
+| File listing               | `fls`       | Deleted files identified                   |
+| File recovery              | `icat`      | Four deleted artefacts recovered           |
+| Block analysis             | `blkcat`    | Raw storage-level examination performed    |
+| Signature analysis         | `Binwalk`   | Recognised JPEG structures identified      |
+| File carving               | `Scalpel`   | DOC candidates recovered and validated     |
+| Integrity verification     | MD5/SHA-256 | Recovered artefacts hashed                 |
 
 ---
 
-# 33. Repository Structure
+# 🧠 15. Key Findings
+
+### Finding 1 — JPEG structure can be identified from binary data
+
+The JPEG SOI and EOI markers were directly identified within the hexadecimal representation:
 
 ```text
-Lab3-Data-Carving-XXD-Binwalk-Scalpel/
+FF D8 → Start of Image
+FF D9 → End of Image
+```
+
+### Finding 2 — Hexadecimal reconstruction preserved the evidence
+
+The JPEG was converted to hexadecimal and reconstructed without modification.
+
+The original and reconstructed files produced identical MD5 and SHA-256 hashes.
+
+### Finding 3 — Deleted files remained recoverable
+
+Although directory entries indicated deletion, the underlying FAT12 data allowed four files to be recovered:
+
+```text
+Billing_Letter.doc
+confirmation.txt
+letter1.txt
+Regrets.doc
+```
+
+### Finding 4 — File-system metadata can assist recovery
+
+The Sleuth Kit's `fls` output provided deleted-file metadata references that enabled targeted recovery using `icat`.
+
+### Finding 5 — File carving requires validation
+
+Scalpel produced ten DOC candidates, but only a subset represented meaningful Word-document content.
+
+Duplicate, incomplete and over-carved results demonstrate why carved artefacts must be validated before being treated as confirmed evidence.
+
+### Finding 6 — Different forensic tools provide complementary evidence
+
+TSK and Scalpel did not simply produce identical outputs. Instead, their results demonstrated different approaches:
+
+```text
+The Sleuth Kit
+     ↓
+File-system-aware recovery
+     ↓
+Deleted directory entries
+     ↓
+Targeted extraction with icat
+
+Scalpel
+     ↓
+Signature-based carving
+     ↓
+Raw-data candidates
+     ↓
+Validation required
+```
+
+---
+
+# ⚖️ 16. Forensic Integrity
+
+The following principles were applied throughout the exercise:
+
+* Original evidence was preserved.
+* Working copies and recovered artefacts were stored separately.
+* Cryptographic hashes were calculated.
+* Actual evidence-derived offsets and structures were used.
+* Recovered artefacts were independently hashed.
+* Tool output was retained for reproducibility.
+* False positives and tool limitations were documented.
+* Findings were based on observed evidence rather than assumptions.
+
+---
+
+# ⚠️ 17. Limitations
+
+Several limitations were observed during the investigation.
+
+### `mmls`
+
+The standalone FAT12 image did not present a conventional partition table. Consequently, `mmls` did not provide a usable non-zero partition offset.
+
+This was not treated as an error in the evidence. The file-system analysis demonstrated that the FAT12 file system began directly at sector 0.
+
+### Binwalk
+
+Binwalk did not identify additional recognised structures in the DD image.
+
+This was not interpreted as proof that the image contained no recoverable artefacts, because TSK subsequently identified and recovered deleted files.
+
+### Scalpel
+
+Scalpel produced multiple DOC candidates, including duplicates and invalid/incomplete results. This demonstrated the limitations of signature-based carving when file boundaries or fragments are ambiguous.
+
+---
+
+# 🛠️ Tools
+
+| Tool           | Purpose                               |
+| -------------- | ------------------------------------- |
+| **Kali Linux** | Forensic analysis environment         |
+| `xxd`          | Hexadecimal inspection/reconstruction |
+| `strings`      | Readable-string extraction            |
+| `file`         | File-type identification              |
+| `img_stat`     | Forensic image information            |
+| `mmls`         | Partition analysis                    |
+| `fsstat`       | File-system analysis                  |
+| `fls`          | File and deleted-entry listing        |
+| `icat`         | File recovery                         |
+| `blkcat`       | Block-level examination               |
+| `binwalk`      | Signature/embedded-content analysis   |
+| `Scalpel`      | Signature-based file carving          |
+| `7z`           | Archive extraction                    |
+| `md5sum`       | MD5 integrity hashing                 |
+| `sha256sum`    | SHA-256 integrity hashing             |
+
+---
+
+# 📁 Repository Structure
+
+```text
+Lab3_Data_Carving/
 │
-├── README.md
-│
-├── report/
-│   └── Lab3_Forensic_Report.pdf
-│
-├── screenshots/
-│   ├── 01_initial_hashes.png
-│   ├── 02_jpeg_header_xxd.png
-│   ├── 03_jpeg_footer_xxd.png
-│   ├── 04_plain_hex_dump.png
-│   ├── 05_jpeg_reconstruction.png
-│   ├── 06_hash_comparison.png
-│   ├── 07_strings_analysis.png
-│   ├── 08_img_stat.png
-│   ├── 09_mmls.png
-│   ├── 10_fsstat.png
-│   ├── 11_fls.png
-│   ├── 12_icat.png
-│   ├── 13_blkcat.png
-│   ├── 14_binwalk_scan.png
-│   ├── 15_binwalk_extraction.png
-│   ├── 16_usb_extraction.png
-│   ├── 17_usb_hash.png
-│   ├── 18_usb_mmls.png
-│   ├── 19_scalpel_configuration.png
-│   ├── 20_scalpel_execution.png
-│   ├── 21_recovered_jpeg_01.png
-│   ├── 22_recovered_jpeg_02.png
-│   └── 23_scalpel_audit.png
-│
+├── original_evidence/
+├── working/
+├── recovered/
 ├── hashes/
-│   └── hashes.txt
-│
-└── evidence/
-    └── [Evidence files / references as permitted]
+├── scalpel_output/
+├── tsk_analysis/
+└── xxd_analysis/
 ```
 
-> **Evidence note:** Large forensic images should not be uploaded to GitHub unless specifically required by the course. The README, report, screenshots, hash records and relevant small artefacts should be sufficient unless the instructor explicitly requires the original evidence image.
+The repository intentionally separates:
+
+* **Original evidence**
+* **Working copies**
+* **Recovered artefacts**
+* **Hash records**
+* **Scalpel output**
+* **Sleuth Kit analysis**
+* **XXD/hexadecimal analysis**
+
+This separation makes the investigation easier to reproduce and review.
 
 ---
 
-## 34. Academic and Forensic Integrity Statement
+# 🎓 Academic Context
 
-This practical was completed using the authorised laboratory evidence supplied for SBT-DF202. The analysis was conducted for educational and forensic-training purposes. Findings recorded in this repository are based on observed command output and recovered artefacts from the supplied evidence.
+**Course:** SBT-DF202 — Computer and Digital Forensics
+**Practical:** Lab 3 — Data Carving
+**Environment:** Kali Linux
+**Focus:** Digital forensics, file carving, deleted-file recovery and binary analysis
 
-No conclusions were made from information that was not directly observed during the analysis.
+This repository documents an authorised educational laboratory exercise and is intended for **digital-forensics training and academic demonstration**.
+
+---
+
+## 👩🏽‍💻 Author
+
+**Kafayat Omolara Animashawun, CISSP**
+
+Cybersecurity | Threat Intelligence | Incident Response | Digital Forensics
+
+---
+
+## ⭐ Skills Demonstrated
+
+```text
+Digital Forensics
+      │
+      ├── Evidence Preservation
+      ├── Cryptographic Hashing
+      ├── Hexadecimal Analysis
+      ├── File Signature Analysis
+      ├── FAT12 File-System Analysis
+      ├── Deleted File Recovery
+      ├── File Carving
+      ├── Embedded Data Analysis
+      ├── Artefact Validation
+      └── Forensic Documentation
+```
+
+---
+
+> **Disclaimer:** This project contains laboratory evidence and artefacts supplied for an authorised academic exercise. It is not based on real-world investigative evidence.
